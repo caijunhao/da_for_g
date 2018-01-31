@@ -106,7 +106,7 @@ def main():
                                 master=args.master,
                                 global_step=global_step,
                                 session_config=session_config,
-                                init_fn=init_fn,
+                                # init_fn=init_fn,
                                 summary_op=summary_op,
                                 number_of_steps=args.num_steps,
                                 startup_delay_steps=15,

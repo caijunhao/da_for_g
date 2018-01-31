@@ -16,6 +16,7 @@ args = parser.parse_args()
 num_classes = 18
 
 images_t = tf.placeholder(dtype=tf.float32, shape=[None, 224, 224, 3])
+images_t = images_t - [123.68, 116.779, 103.939]
 
 with slim.arg_scope(model_arg_scope()):
     net, end_points = model(inputs=images_t,

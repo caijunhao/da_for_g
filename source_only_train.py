@@ -1,4 +1,4 @@
-from hparams import create_hparams
+from hparams import create_source_hparams
 from network_utils import get_dataset, create_loss, add_summary, restore_map
 from model import model, model_arg_scope
 
@@ -24,11 +24,11 @@ parser.add_argument('--print_loss_steps', default=100, type=int, help='The frequ
                                                                       'the losses are printed, in steps.')
 parser.add_argument('--source_dir', default='', type=str, help='The directory where the source datasets can be found.')
 parser.add_argument('--target_dir', default='', type=str, help='The directory where the target datasets can be found.')
-parser.add_argument('--num_readers', default=4, type=int, help='The number of parallel readers '
+parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
 parser.add_argument('--num_steps', default=200000, type=int, help='The max number of gradient steps to take '
                                                                   'during training.')
-parser.add_argument('--num_preprocessing_threads', default=4, type=int, help='The number of threads '
+parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
 parser.add_argument('--hparams', default='', type=str, help='Comma separated hyper parameter values')
 parser.add_argument('--from_adapt_checkpoint', default=False, type=bool, help='Whether load checkpoint '
@@ -41,7 +41,7 @@ num_classes = 18
 
 def main():
     tf.logging.set_verbosity(tf.logging.INFO)
-    hparams = create_hparams()
+    hparams = create_source_hparams()
     for path in [args.train_log_dir]:
         if not tf.gfile.Exists(path):
             tf.gfile.MakeDirs(path)
@@ -86,6 +86,7 @@ def main():
             summary_op = tf.summary.merge_all()
             variable_map = restore_map(from_adapt_checkpoint=args.from_adapt_checkpoint,
                                        scope='source_only',
+                                       model_name='source_only',
                                        checkpoint_exclude_scope='fc8')
             init_saver = tf.train.Saver(variable_map)
 

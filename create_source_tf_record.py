@@ -40,7 +40,7 @@ def dict_to_tf_example(path, size, label, theta):
     image = PIL.Image.open(encoded_jpg_io)
     if image.format != 'JPEG':
         raise ValueError('Image format not JPEG')
-    class_label = 1 if label == 'positive' else 0
+    class_label = 0 if label == 'positive' else 1
     theta_label = convert_theta(float(theta))
     example = tf.train.Example(features=tf.train.Features(feature={
         'image/encoded': dataset_utils.bytes_feature(encoded_jpg),
