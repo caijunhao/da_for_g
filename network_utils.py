@@ -92,9 +92,9 @@ def add_summary(images, end_points, loss, accuracy, scope='graspnet'):
         tf.summary.histogram(var.name, var)
 
 
-def restore_map(from_adapt_checkpoint, scope, model_name, checkpoint_exclude_scope=''):
+def restore_map(from_adapt_checkpoint, scope, model_name, checkpoint_exclude_scopes=None):
     if not from_adapt_checkpoint:
-        variables_to_restore = restore_from_pretrained_checkpoint(scope, model_name, checkpoint_exclude_scope)
+        variables_to_restore = restore_from_pretrained_checkpoint(scope, model_name, checkpoint_exclude_scopes)
         return variables_to_restore
     else:
         variable_list = slim.get_model_variables(scope)
@@ -102,9 +102,10 @@ def restore_map(from_adapt_checkpoint, scope, model_name, checkpoint_exclude_sco
         return variables_to_restore
 
 
-def restore_from_pretrained_checkpoint(scope, model_name, checkpoint_exclude_scope):
+def restore_from_pretrained_checkpoint(scope, model_name, checkpoint_exclude_scopes):
     variable_list = slim.get_model_variables(scope)
-    variable_list = [var for var in variable_list if checkpoint_exclude_scope not in var.op.name]
+    for checkpoint_exclude_scope in checkpoint_exclude_scopes:
+        variable_list = [var for var in variable_list if checkpoint_exclude_scope not in var.op.name]
     variables_to_restore = {}
     for var in variable_list:
         if var.name.startswith(scope):
