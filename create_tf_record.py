@@ -9,13 +9,14 @@ import io
 import dataset_utils
 
 parser = argparse.ArgumentParser(description='create tf record')
-parser.add_argument('--set', default='Train', type=str, help='Convert training set, validation set or test set.')
+parser.add_argument('--set', default='t12', type=str, help='Convert training set, validation set or test set.')
 parser.add_argument('--data_dir', default='/data/cmu_patch_datasets', type=str, help='Path of dataset.')
 parser.add_argument('--output_path', default='', type=str, required=True, help='Path of record.')
 parser.add_argument('--image_size', default=224, type=int, help='Image size.')
 args = parser.parse_args()
 
-sets = ['Train', 'Test', 'Validation']
+sets = ['Train', 'Test', 'Validation', 'Target', 'Target2']
+sets.extend(['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12'])
 labels = ['positive', 'negative']
 label_file = 'dataInfo.txt'
 folder = 'Images'
