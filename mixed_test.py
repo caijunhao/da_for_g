@@ -1,4 +1,4 @@
-from hparams import create_source_hparams
+from hparams import create_mixed_hparams
 from network_utils import get_dataset
 from model import model, model_arg_scope
 
@@ -17,7 +17,7 @@ num_classes = 18
 
 
 def main():
-    hparams = create_source_hparams()
+    hparams = create_mixed_hparams()
     images, class_labels, theta_labels = get_dataset(args.dataset_dir,
                                                      num_readers=1,
                                                      num_preprocessing_threads=1,

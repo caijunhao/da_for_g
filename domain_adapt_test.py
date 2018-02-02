@@ -1,4 +1,4 @@
-from hparams import create_source_hparams
+from hparams import create_domain_adapt_hparams
 from network_utils import get_dataset
 from model import model, model_arg_scope
 
@@ -17,7 +17,7 @@ num_classes = 18
 
 
 def main():
-    hparams = create_source_hparams()
+    hparams = create_domain_adapt_hparams()
     images, class_labels, theta_labels = get_dataset(args.dataset_dir,
                                                      num_readers=1,
                                                      num_preprocessing_threads=1,
@@ -30,7 +30,10 @@ def main():
                                 num_classes=num_classes,
                                 is_training=False,
                                 dropout_keep_prob=1.0,
-                                scope=hparams.scope)
+                                reuse=tf.AUTO_REUSE,
+                                scope=hparams.scope,
+                                adapt_scope='target_adapt_layer',
+                                adapt_dims=128)
     theta_lebels_one_hot = tf.one_hot(theta_labels, depth=18, on_value=1.0, off_value=0.0)
     theta_acted = tf.reduce_sum(tf.multiply(net, theta_lebels_one_hot), axis=1, name='theta_acted')
     sig_op = slim.nn.sigmoid(theta_acted)
