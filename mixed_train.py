@@ -1,4 +1,4 @@
-from hparams import create_target_hparams
+from hparams import create_mixed_hparams
 from network_utils import get_dataset, create_loss, add_summary, restore_map
 from model import model, model_arg_scope
 
@@ -33,7 +33,7 @@ parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='Th
 parser.add_argument('--hparams', default='', type=str, help='Comma separated hyper parameter values')
 parser.add_argument('--from_adapt_checkpoint', default=False, type=bool, help='Whether load checkpoint '
                                                                               'from graspnet checkpoint '
-                                                                                 'or classification checkpoint.')
+                                                                              'or classification checkpoint.')
 parser.add_argument('--checkpoint_dir', default='', type=str, help='The directory where the checkpoint can be found')
 args = parser.parse_args()
 num_classes = 18
@@ -41,7 +41,7 @@ num_classes = 18
 
 def main():
     tf.logging.set_verbosity(tf.logging.INFO)
-    hparams = create_target_hparams()
+    hparams = create_mixed_hparams()
     for path in [args.train_log_dir]:
         if not tf.gfile.Exists(path):
             tf.gfile.MakeDirs(path)
@@ -51,17 +51,25 @@ def main():
     with tf.Graph().as_default():
         with tf.device(tf.train.replica_device_setter(args.task_id)):
             global_step = tf.train.get_or_create_global_step()
-            images_p, class_labels_p, theta_labels_p = get_dataset(os.path.join(args.target_dir, 'positive'),
-                                                                   args.num_readers,
-                                                                   args.num_preprocessing_threads,
-                                                                   hparams)
-            images_n, class_labels_n, theta_labels_n = get_dataset(os.path.join(args.target_dir, 'negative'),
-                                                                   args.num_readers,
-                                                                   args.num_preprocessing_threads,
-                                                                   hparams)
-            images = tf.concat([images_p, images_n], axis=0)
-            class_labels = tf.concat([class_labels_p, class_labels_n], axis=0)
-            theta_labels = tf.concat([theta_labels_p, theta_labels_n], axis=0)
+            images_p_t, class_labels_p_t, theta_labels_p_t = get_dataset(os.path.join(args.target_dir, 'positive'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images_n_t, class_labels_n_t, theta_labels_n_t = get_dataset(os.path.join(args.target_dir, 'negative'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images_p_s, class_labels_p_s, theta_labels_p_s = get_dataset(os.path.join(args.source_dir, 'positive'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images_n_s, class_labels_n_s, theta_labels_n_s = get_dataset(os.path.join(args.source_dir, 'negative'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images = tf.concat([images_p_t, images_n_t, images_p_s, images_n_s], axis=0)
+            class_labels = tf.concat([class_labels_p_t, class_labels_n_t, class_labels_p_s, class_labels_n_s], axis=0)
+            theta_labels = tf.concat([theta_labels_p_t, theta_labels_n_t, theta_labels_p_s, theta_labels_n_s], axis=0)
             with slim.arg_scope(model_arg_scope()):
                 net, end_points = model(inputs=images,
                                         num_classes=num_classes,

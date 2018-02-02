@@ -1,4 +1,4 @@
-from hparams import create_target_hparams
+from hparams import create_finetune_hparams
 from network_utils import get_dataset, create_loss, add_summary, restore_map
 from model import model, model_arg_scope
 
@@ -26,14 +26,14 @@ parser.add_argument('--source_dir', default='', type=str, help='The directory wh
 parser.add_argument('--target_dir', default='', type=str, help='The directory where the target datasets can be found.')
 parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
-parser.add_argument('--num_steps', default=100000, type=int, help='The max number of gradient steps to take '
+parser.add_argument('--num_steps', default=20000, type=int, help='The max number of gradient steps to take '
                                                                  'during training.')
 parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
 parser.add_argument('--hparams', default='', type=str, help='Comma separated hyper parameter values')
 parser.add_argument('--from_adapt_checkpoint', default=False, type=bool, help='Whether load checkpoint '
                                                                               'from graspnet checkpoint '
-                                                                                 'or classification checkpoint.')
+                                                                              'or classification checkpoint.')
 parser.add_argument('--checkpoint_dir', default='', type=str, help='The directory where the checkpoint can be found')
 args = parser.parse_args()
 num_classes = 18
@@ -41,7 +41,7 @@ num_classes = 18
 
 def main():
     tf.logging.set_verbosity(tf.logging.INFO)
-    hparams = create_target_hparams()
+    hparams = create_finetune_hparams()
     for path in [args.train_log_dir]:
         if not tf.gfile.Exists(path):
             tf.gfile.MakeDirs(path)
@@ -106,7 +106,7 @@ def main():
                                 master=args.master,
                                 global_step=global_step,
                                 session_config=session_config,
-                                # init_fn=init_fn,
+                                init_fn=init_fn,
                                 summary_op=summary_op,
                                 number_of_steps=args.num_steps,
                                 startup_delay_steps=15,

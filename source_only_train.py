@@ -18,7 +18,7 @@ parser.add_argument('--task_id', default=0, type=int, help='The Task ID. This va
 parser.add_argument('--train_log_dir', default='logs/', type=str, help='Directory where to write event logs.')
 parser.add_argument('--save_summaries_steps', default=120, type=int, help='The frequency with which'
                                                                           ' summaries are saved, in seconds.')
-parser.add_argument('--save_interval_secs', default=600, type=int, help='The frequency with which '
+parser.add_argument('--save_interval_secs', default=300, type=int, help='The frequency with which '
                                                                         'the model is saved, in seconds.')
 parser.add_argument('--print_loss_steps', default=100, type=int, help='The frequency with which '
                                                                       'the losses are printed, in steps.')
@@ -26,7 +26,7 @@ parser.add_argument('--source_dir', default='', type=str, help='The directory wh
 parser.add_argument('--target_dir', default='', type=str, help='The directory where the target datasets can be found.')
 parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
-parser.add_argument('--num_steps', default=200000, type=int, help='The max number of gradient steps to take '
+parser.add_argument('--num_steps', default=100000, type=int, help='The max number of gradient steps to take '
                                                                   'during training.')
 parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
@@ -67,7 +67,7 @@ def main():
                                         num_classes=num_classes,
                                         is_training=True,
                                         dropout_keep_prob=0.7,
-                                        scope='source_only')
+                                        scope=hparams.scope)
             loss, accuracy = create_loss(net,
                                          end_points,
                                          class_labels,
@@ -82,12 +82,12 @@ def main():
             tf.summary.scalar('Learning_rate', learning_rate)
             optimizer = tf.train.GradientDescentOptimizer(learning_rate)
             train_op = slim.learning.create_train_op(loss, optimizer)
-            add_summary(images, end_points, loss, accuracy, scope='source_only')
+            add_summary(images, end_points, loss, accuracy, scope=hparams.scope)
             summary_op = tf.summary.merge_all()
             variable_map = restore_map(from_adapt_checkpoint=args.from_adapt_checkpoint,
-                                       scope='source_only',
+                                       scope=hparams.scope,
                                        model_name='source_only',
-                                       checkpoint_exclude_scope='fc8')
+                                       checkpoint_exclude_scopes=['adapt', 'fc8'])
             init_saver = tf.train.Saver(variable_map)
 
             def initializer_fn(sess):

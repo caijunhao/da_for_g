@@ -1,4 +1,4 @@
-from hparams import create_hparams
+from hparams import create_domain_adapt_hparams
 from network_utils import get_dataset, create_loss, add_summary, restore_map
 from model import model, model_arg_scope
 
@@ -7,7 +7,7 @@ import tensorflow.contrib.slim as slim
 
 import argparse
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 parser = argparse.ArgumentParser(description='training network')
 
@@ -18,22 +18,22 @@ parser.add_argument('--task_id', default=0, type=int, help='The Task ID. This va
 parser.add_argument('--train_log_dir', default='logs/', type=str, help='Directory where to write event logs.')
 parser.add_argument('--save_summaries_steps', default=120, type=int, help='The frequency with which'
                                                                           ' summaries are saved, in seconds.')
-parser.add_argument('--save_interval_secs', default=600, type=int, help='The frequency with which '
+parser.add_argument('--save_interval_secs', default=300, type=int, help='The frequency with which '
                                                                         'the model is saved, in seconds.')
 parser.add_argument('--print_loss_steps', default=100, type=int, help='The frequency with which '
                                                                       'the losses are printed, in steps.')
 parser.add_argument('--source_dir', default='', type=str, help='The directory where the source datasets can be found.')
 parser.add_argument('--target_dir', default='', type=str, help='The directory where the target datasets can be found.')
-parser.add_argument('--num_readers', default=4, type=int, help='The number of parallel readers '
+parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
 parser.add_argument('--num_steps', default=100000, type=int, help='The max number of gradient steps to take '
-                                                                 'during training.')
-parser.add_argument('--num_preprocessing_threads', default=4, type=int, help='The number of threads '
+                                                                  'during training.')
+parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
 parser.add_argument('--hparams', default='', type=str, help='Comma separated hyper parameter values')
 parser.add_argument('--from_adapt_checkpoint', default=False, type=bool, help='Whether load checkpoint '
-                                                                                 'from adapt checkpoint '
-                                                                                 'or classification checkpoint.')
+                                                                              'from adapt checkpoint '
+                                                                              'or classification checkpoint.')
 parser.add_argument('--checkpoint_dir', default='', type=str, help='The directory where the checkpoint can be found')
 args = parser.parse_args()
 num_classes = 18
@@ -41,7 +41,7 @@ num_classes = 18
 
 def main():
     tf.logging.set_verbosity(tf.logging.INFO)
-    hparams = create_hparams()
+    hparams = create_domain_adapt_hparams()
     for path in [args.train_log_dir]:
         if not tf.gfile.Exists(path):
             tf.gfile.MakeDirs(path)
@@ -69,7 +69,7 @@ def main():
                                             is_training=True,
                                             dropout_keep_prob=hparams.dropout_keep_prob,
                                             reuse=tf.AUTO_REUSE,
-                                            scope='domain_adapt',
+                                            scope=hparams.scope,
                                             adapt_scope='target_adapt_layer',
                                             adapt_dims=128)
 
@@ -90,7 +90,7 @@ def main():
                                             is_training=True,
                                             dropout_keep_prob=hparams.dropout_keep_prob,
                                             reuse=tf.AUTO_REUSE,
-                                            scope='domain_adapt',
+                                            scope=hparams.scope,
                                             adapt_scope='source_adapt_layer',
                                             adapt_dims=128)
 
@@ -105,7 +105,7 @@ def main():
                                          end_points,
                                          class_labels,
                                          theta_labels,
-                                         scope='domain_adapt',
+                                         scope=hparams.scope,
                                          source_adapt_scope='source_adapt_layer',
                                          target_adapt_scope='target_adapt_layer')
             learning_rate = hparams.learning_rate
@@ -121,9 +121,9 @@ def main():
             add_summary(images, end_points, loss, accuracy, scope='domain_adapt')
             summary_op = tf.summary.merge_all()
             variable_map = restore_map(from_adapt_checkpoint=args.from_adapt_checkpoint,
-                                       scope='domain_adapt',
-                                       model_name='source_only',
-                                       checkpoint_exclude_scope='adapt_layer')
+                                       scope=hparams.scope,
+                                       model_name='mixed',
+                                       checkpoint_exclude_scopes=['adapt_layer', 'fc8'])
             init_saver = tf.train.Saver(variable_map)
 
             def initializer_fn(sess):
@@ -142,7 +142,7 @@ def main():
                                 master=args.master,
                                 global_step=global_step,
                                 session_config=session_config,
-                                init_fn=init_fn,
+                                # init_fn=init_fn,
                                 summary_op=summary_op,
                                 number_of_steps=args.num_steps,
                                 startup_delay_steps=15,

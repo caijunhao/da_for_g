@@ -1,13 +1,13 @@
-from hparams import create_target_hparams
+from hparams import create_domain_adapt_se_hparams
 from network_utils import get_dataset, create_loss, add_summary, restore_map
-from model import model, model_arg_scope
+from model import se_model, model_arg_scope
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 import argparse
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 parser = argparse.ArgumentParser(description='training network')
 
@@ -27,13 +27,13 @@ parser.add_argument('--target_dir', default='', type=str, help='The directory wh
 parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
 parser.add_argument('--num_steps', default=100000, type=int, help='The max number of gradient steps to take '
-                                                                 'during training.')
+                                                                  'during training.')
 parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
 parser.add_argument('--hparams', default='', type=str, help='Comma separated hyper parameter values')
 parser.add_argument('--from_adapt_checkpoint', default=False, type=bool, help='Whether load checkpoint '
-                                                                              'from graspnet checkpoint '
-                                                                                 'or classification checkpoint.')
+                                                                              'from adapt checkpoint '
+                                                                              'or classification checkpoint.')
 parser.add_argument('--checkpoint_dir', default='', type=str, help='The directory where the checkpoint can be found')
 args = parser.parse_args()
 num_classes = 18
@@ -41,7 +41,7 @@ num_classes = 18
 
 def main():
     tf.logging.set_verbosity(tf.logging.INFO)
-    hparams = create_target_hparams()
+    hparams = create_domain_adapt_se_hparams()
     for path in [args.train_log_dir]:
         if not tf.gfile.Exists(path):
             tf.gfile.MakeDirs(path)
@@ -51,27 +51,65 @@ def main():
     with tf.Graph().as_default():
         with tf.device(tf.train.replica_device_setter(args.task_id)):
             global_step = tf.train.get_or_create_global_step()
-            images_p, class_labels_p, theta_labels_p = get_dataset(os.path.join(args.target_dir, 'positive'),
-                                                                   args.num_readers,
-                                                                   args.num_preprocessing_threads,
-                                                                   hparams)
-            images_n, class_labels_n, theta_labels_n = get_dataset(os.path.join(args.target_dir, 'negative'),
-                                                                   args.num_readers,
-                                                                   args.num_preprocessing_threads,
-                                                                   hparams)
-            images = tf.concat([images_p, images_n], axis=0)
-            class_labels = tf.concat([class_labels_p, class_labels_n], axis=0)
-            theta_labels = tf.concat([theta_labels_p, theta_labels_n], axis=0)
+
+            images_p_t, class_labels_p_t, theta_labels_p_t = get_dataset(os.path.join(args.target_dir, 'positive'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images_n_t, class_labels_n_t, theta_labels_n_t = get_dataset(os.path.join(args.target_dir, 'negative'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images_t = tf.concat([images_p_t, images_n_t], axis=0)
+            class_labels_t = tf.concat([class_labels_p_t, class_labels_n_t], axis=0)
+            theta_labels_t = tf.concat([theta_labels_p_t, theta_labels_n_t], axis=0)
             with slim.arg_scope(model_arg_scope()):
-                net, end_points = model(inputs=images,
-                                        num_classes=num_classes,
-                                        is_training=True,
-                                        dropout_keep_prob=0.7,
-                                        scope=hparams.scope)
+                net_t, end_points_t = se_model(inputs=images_t,
+                                               num_classes=num_classes,
+                                               is_training=True,
+                                               dropout_keep_prob=hparams.dropout_keep_prob,
+                                               reuse=tf.AUTO_REUSE,
+                                               scope=hparams.scope,
+                                               adapt_scope='target_adapt_layer',
+                                               adapt_dims=hparams.adapt_dims,
+                                               reduction_ratio=hparams.reduction_ratio)
+
+            images_p_s, class_labels_p_s, theta_labels_p_s = get_dataset(os.path.join(args.source_dir, 'positive'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images_n_s, class_labels_n_s, theta_labels_n_s = get_dataset(os.path.join(args.source_dir, 'negative'),
+                                                                         args.num_readers,
+                                                                         args.num_preprocessing_threads,
+                                                                         hparams)
+            images_s = tf.concat([images_p_s, images_n_s], axis=0)
+            class_labels_s = tf.concat([class_labels_p_s, class_labels_n_s], axis=0)
+            theta_labels_s = tf.concat([theta_labels_p_s, theta_labels_n_s], axis=0)
+            with slim.arg_scope(model_arg_scope()):
+                net_s, end_points_s = se_model(inputs=images_s,
+                                               num_classes=num_classes,
+                                               is_training=True,
+                                               dropout_keep_prob=hparams.dropout_keep_prob,
+                                               reuse=tf.AUTO_REUSE,
+                                               scope=hparams.scope,
+                                               adapt_scope='source_adapt_layer',
+                                               adapt_dims=hparams.adapt_dims,
+                                               reduction_ratio=hparams.reduction_ratio)
+
+            net = tf.concat([net_t, net_s], axis=0)
+            images = tf.concat([images_t, images_s], axis=0)
+            class_labels = tf.concat([class_labels_t, class_labels_s], axis=0)
+            theta_labels = tf.concat([theta_labels_t, theta_labels_s], axis=0)
+            end_points = {}
+            end_points.update(end_points_t)
+            end_points.update(end_points_s)
             loss, accuracy = create_loss(net,
                                          end_points,
                                          class_labels,
-                                         theta_labels)
+                                         theta_labels,
+                                         scope=hparams.scope,
+                                         source_adapt_scope='source_adapt_layer',
+                                         target_adapt_scope='target_adapt_layer')
             learning_rate = hparams.learning_rate
             if hparams.lr_decay_step:
                 learning_rate = tf.train.exponential_decay(hparams.learning_rate,
@@ -82,12 +120,12 @@ def main():
             tf.summary.scalar('Learning_rate', learning_rate)
             optimizer = tf.train.GradientDescentOptimizer(learning_rate)
             train_op = slim.learning.create_train_op(loss, optimizer)
-            add_summary(images, end_points, loss, accuracy, scope=hparams.scope)
+            add_summary(images, end_points, loss, accuracy, scope='domain_adapt')
             summary_op = tf.summary.merge_all()
             variable_map = restore_map(from_adapt_checkpoint=args.from_adapt_checkpoint,
                                        scope=hparams.scope,
-                                       model_name='source_only',
-                                       checkpoint_exclude_scopes=['adapt', 'fc8'])
+                                       model_name='mixed',
+                                       checkpoint_exclude_scopes=['adapt_layer', 'fc8'])
             init_saver = tf.train.Saver(variable_map)
 
             def initializer_fn(sess):
@@ -106,7 +144,7 @@ def main():
                                 master=args.master,
                                 global_step=global_step,
                                 session_config=session_config,
-                                # init_fn=init_fn,
+                                init_fn=init_fn,
                                 summary_op=summary_op,
                                 number_of_steps=args.num_steps,
                                 startup_delay_steps=15,
