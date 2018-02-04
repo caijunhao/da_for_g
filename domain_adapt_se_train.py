@@ -18,7 +18,7 @@ parser.add_argument('--task_id', default=0, type=int, help='The Task ID. This va
 parser.add_argument('--train_log_dir', default='logs/', type=str, help='Directory where to write event logs.')
 parser.add_argument('--save_summaries_steps', default=120, type=int, help='The frequency with which'
                                                                           ' summaries are saved, in seconds.')
-parser.add_argument('--save_interval_secs', default=300, type=int, help='The frequency with which '
+parser.add_argument('--save_interval_secs', default=500, type=int, help='The frequency with which '
                                                                         'the model is saved, in seconds.')
 parser.add_argument('--print_loss_steps', default=100, type=int, help='The frequency with which '
                                                                       'the losses are printed, in steps.')
@@ -26,7 +26,7 @@ parser.add_argument('--source_dir', default='', type=str, help='The directory wh
 parser.add_argument('--target_dir', default='', type=str, help='The directory where the target datasets can be found.')
 parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
-parser.add_argument('--num_steps', default=100000, type=int, help='The max number of gradient steps to take '
+parser.add_argument('--num_steps', default=150000, type=int, help='The max number of gradient steps to take '
                                                                   'during training.')
 parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
@@ -144,7 +144,7 @@ def main():
                                 master=args.master,
                                 global_step=global_step,
                                 session_config=session_config,
-                                init_fn=init_fn,
+                                # init_fn=init_fn,
                                 summary_op=summary_op,
                                 number_of_steps=args.num_steps,
                                 startup_delay_steps=15,
