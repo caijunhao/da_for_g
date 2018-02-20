@@ -7,7 +7,7 @@ import tensorflow.contrib.slim as slim
 
 import argparse
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 parser = argparse.ArgumentParser(description='training network')
 
@@ -118,33 +118,35 @@ def main():
                                                            decay_rate=hparams.lr_decay_rate,
                                                            staircase=True)
             tf.summary.scalar('Learning_rate', learning_rate)
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate)  # GradientDescentOptimizer
             train_op = slim.learning.create_train_op(loss, optimizer)
             add_summary(images, end_points, loss, accuracy, scope='domain_adapt')
             summary_op = tf.summary.merge_all()
+            checkpoint_exclude_scopes = ['adapt_layer', 'fc6', 'fc8', 'squeeze', 'excitation', 'pool', 'BatchNorm']
             variable_map = restore_map(from_adapt_checkpoint=args.from_adapt_checkpoint,
                                        scope=hparams.scope,
-                                       model_name='mixed',
-                                       checkpoint_exclude_scopes=['adapt_layer', 'fc8', 'squeeze', 'excitation'])
+                                       model_name='source_only',
+                                       checkpoint_exclude_scopes=checkpoint_exclude_scopes)
             init_saver = tf.train.Saver(variable_map)
 
             def initializer_fn(sess):
                 init_saver.restore(sess, tf.train.latest_checkpoint(args.checkpoint_dir))
-                tf.logging.info('Successfully load pretrained checkpoint.')
+                tf.logging.info('Successfully load pretrained checkpoint: {}.'.format(
+                    tf.train.latest_checkpoint(args.checkpoint_dir)))
 
             init_fn = initializer_fn
             session_config = tf.ConfigProto(allow_soft_placement=True,
                                             log_device_placement=False)
             session_config.gpu_options.allow_growth = True
             saver = tf.train.Saver(keep_checkpoint_every_n_hours=args.save_interval_secs,
-                                   max_to_keep=100)
+                                   max_to_keep=200)
 
             slim.learning.train(train_op,
                                 logdir=args.train_log_dir,
                                 master=args.master,
                                 global_step=global_step,
                                 session_config=session_config,
-                                # init_fn=init_fn,
+                                init_fn=init_fn,
                                 summary_op=summary_op,
                                 number_of_steps=args.num_steps,
                                 startup_delay_steps=15,

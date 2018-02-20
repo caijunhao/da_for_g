@@ -1,13 +1,13 @@
-from hparams import create_domain_adapt_se_hparams
+from hparams import create_domain_adapt_se2_hparams
 from network_utils import get_dataset, create_loss, add_summary, restore_map
-from model import se_model, model_arg_scope
+from model import se_model2, model_arg_scope
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 import argparse
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 parser = argparse.ArgumentParser(description='training network')
 
@@ -41,7 +41,7 @@ num_classes = 18
 
 def main():
     tf.logging.set_verbosity(tf.logging.INFO)
-    hparams = create_domain_adapt_se_hparams()
+    hparams = create_domain_adapt_se2_hparams()
     for path in [args.train_log_dir]:
         if not tf.gfile.Exists(path):
             tf.gfile.MakeDirs(path)
@@ -64,15 +64,15 @@ def main():
             class_labels_t = tf.concat([class_labels_p_t, class_labels_n_t], axis=0)
             theta_labels_t = tf.concat([theta_labels_p_t, theta_labels_n_t], axis=0)
             with slim.arg_scope(model_arg_scope()):
-                net_t, end_points_t = se_model(inputs=images_t,
-                                               num_classes=num_classes,
-                                               is_training=True,
-                                               dropout_keep_prob=hparams.dropout_keep_prob,
-                                               reuse=tf.AUTO_REUSE,
-                                               scope=hparams.scope,
-                                               adapt_scope='target_adapt_layer',
-                                               adapt_dims=hparams.adapt_dims,
-                                               reduction_ratio=hparams.reduction_ratio)
+                net_t, end_points_t = se_model2(inputs=images_t,
+                                                num_classes=num_classes,
+                                                is_training=True,
+                                                dropout_keep_prob=hparams.dropout_keep_prob,
+                                                reuse=tf.AUTO_REUSE,
+                                                scope=hparams.scope,
+                                                adapt_scope='target_adapt_layer',
+                                                adapt_dims=hparams.adapt_dims,
+                                                reduction_ratio=hparams.reduction_ratio)
 
             images_p_s, class_labels_p_s, theta_labels_p_s = get_dataset(os.path.join(args.source_dir, 'positive'),
                                                                          args.num_readers,
@@ -86,15 +86,15 @@ def main():
             class_labels_s = tf.concat([class_labels_p_s, class_labels_n_s], axis=0)
             theta_labels_s = tf.concat([theta_labels_p_s, theta_labels_n_s], axis=0)
             with slim.arg_scope(model_arg_scope()):
-                net_s, end_points_s = se_model(inputs=images_s,
-                                               num_classes=num_classes,
-                                               is_training=True,
-                                               dropout_keep_prob=hparams.dropout_keep_prob,
-                                               reuse=tf.AUTO_REUSE,
-                                               scope=hparams.scope,
-                                               adapt_scope='source_adapt_layer',
-                                               adapt_dims=hparams.adapt_dims,
-                                               reduction_ratio=hparams.reduction_ratio)
+                net_s, end_points_s = se_model2(inputs=images_s,
+                                                num_classes=num_classes,
+                                                is_training=True,
+                                                dropout_keep_prob=hparams.dropout_keep_prob,
+                                                reuse=tf.AUTO_REUSE,
+                                                scope=hparams.scope,
+                                                adapt_scope='source_adapt_layer',
+                                                adapt_dims=hparams.adapt_dims,
+                                                reduction_ratio=hparams.reduction_ratio)
 
             net = tf.concat([net_t, net_s], axis=0)
             images = tf.concat([images_t, images_s], axis=0)

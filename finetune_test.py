@@ -46,20 +46,36 @@ def main():
     sess.run(tf.local_variables_initializer())
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-    num_corrects = 0
-    num_samples = 0
+    num_pos, num_neg = 0.0, 0.0
+    correct_pos, correct_neg = 0.0, 0.0
     try:
         while not coord.should_stop():
-            num_corrects += int(sess.run(conf)[:])
-            num_samples += 1
-            print num_samples
+            con, label = sess.run([conf, class_labels])
+            con = int(con[:])
+            label = label[:]
+            if label:
+                num_neg += 1
+                correct_neg += con
+            else:
+                num_pos += 1
+                correct_pos += con
     except tf.errors.OutOfRangeError:
         print 'epoch limit reached.'
     finally:
         coord.request_stop()
     coord.join(threads)
     sess.close()
-    print num_corrects * 1.0 / num_samples
+    tp = correct_pos / num_pos
+    tn = correct_neg / num_neg
+    fp = (num_pos - correct_pos) / num_pos
+    fn = (num_neg - correct_neg) / num_neg
+    print 'num_pos: {}, num_neg: {}, correct_pos: {}, correct_neg: {}'.format(num_pos, num_neg, correct_pos,
+                                                                              correct_neg)
+    print 'tp, tn, fp, fn: {}, {}, {}, {}'.format(tp, tn, fp, fn)
+    print 'precision: {}'.format(tp * 1.0 / (tp + fp))
+    print 'recall: {}'.format(tp * 1.0 / (tp + fn))
+    print 'F1 score: {}'.format(2.0 * tp / (2.0 * tp + fp + tn))
+    print 'accuracy: {}'.format((correct_neg + correct_pos) / (num_neg + num_pos))
 
 
 if __name__ == '__main__':

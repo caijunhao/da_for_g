@@ -1,13 +1,13 @@
-from hparams import create_target_hparams
+from hparams import create_domain_adapt_multi_mmd_se_hparams
 from network_utils import get_dataset
-from model import model, model_arg_scope
+from model import multi_mmd_se_model, model_arg_scope
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 import argparse
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 parser = argparse.ArgumentParser(description='evaluate the accuracy')
 parser.add_argument('--dataset_dir', default='', type=str, help='Path to the test data set.')
@@ -17,7 +17,7 @@ num_classes = 18
 
 
 def main():
-    hparams = create_target_hparams()
+    hparams = create_domain_adapt_multi_mmd_se_hparams()
     images, class_labels, theta_labels = get_dataset(args.dataset_dir,
                                                      num_readers=1,
                                                      num_preprocessing_threads=1,
@@ -26,11 +26,15 @@ def main():
                                                      num_epochs=1,
                                                      is_training=False)
     with slim.arg_scope(model_arg_scope()):
-        net, end_points = model(inputs=images,
-                                num_classes=num_classes,
-                                is_training=False,
-                                dropout_keep_prob=1.0,
-                                scope=hparams.scope)
+        net, end_points = multi_mmd_se_model(inputs=images,
+                                             num_classes=num_classes,
+                                             is_training=False,
+                                             dropout_keep_prob=1.0,
+                                             reuse=tf.AUTO_REUSE,
+                                             scope=hparams.scope,
+                                             adapt_scope='target_adapt_layer',
+                                             adapt_dims=hparams.adapt_dims,
+                                             reduction_ratio=hparams.reduction_ratio)
     theta_lebels_one_hot = tf.one_hot(theta_labels, depth=18, on_value=1.0, off_value=0.0)
     theta_acted = tf.reduce_sum(tf.multiply(net, theta_lebels_one_hot), axis=1, name='theta_acted')
     sig_op = slim.nn.sigmoid(theta_acted)
@@ -69,8 +73,7 @@ def main():
     tn = correct_neg / num_neg
     fp = (num_pos - correct_pos) / num_pos
     fn = (num_neg - correct_neg) / num_neg
-    print 'num_pos: {}, num_neg: {}, correct_pos: {}, correct_neg: {}'.format(num_pos, num_neg, correct_pos,
-                                                                              correct_neg)
+    print 'num_pos: {}, num_neg: {}, correct_pos: {}, correct_neg: {}'.format(num_pos, num_neg, correct_pos, correct_neg)
     print 'tp, tn, fp, fn: {}, {}, {}, {}'.format(tp, tn, fp, fn)
     print 'precision: {}'.format(tp * 1.0 / (tp + fp))
     print 'recall: {}'.format(tp * 1.0 / (tp + fn))
