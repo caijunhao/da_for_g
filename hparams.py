@@ -57,7 +57,7 @@ def create_target_hparams(hparam_string=None):
 
 def create_finetune_hparams(hparam_string=None):
     hparams = tf.contrib.training.HParams(learning_rate=0.001,
-                                          lr_decay_step=50000,
+                                          lr_decay_step=20000,
                                           lr_decay_rate=0.95,
                                           dropout_keep_prob=0.7,
                                           batch_size=64,
@@ -93,7 +93,7 @@ def create_mixed_hparams(hparam_string=None):
 
 def create_domain_adapt_hparams(hparam_string=None):
     hparams = tf.contrib.training.HParams(learning_rate=0.01,
-                                          lr_decay_step=10000,
+                                          lr_decay_step=50000,
                                           lr_decay_rate=0.95,
                                           dropout_keep_prob=0.7,
                                           batch_size=64,
@@ -171,8 +171,8 @@ def create_da_full_senet_hparams(hparam_string=None):
 
 
 def create_da_full_senet2_hparams(hparam_string=None):
-    hparams = tf.contrib.training.HParams(learning_rate=0.01,
-                                          lr_decay_step=10000,
+    hparams = tf.contrib.training.HParams(learning_rate=0.005,
+                                          lr_decay_step=50000,
                                           lr_decay_rate=0.95,
                                           dropout_keep_prob=0.7,
                                           batch_size=64,
@@ -212,15 +212,34 @@ def create_domain_adapt_multi_mmd_se_hparams(hparam_string=None):
 
 
 def create_semi_supervised_domain_adapt_hparams(hparam_string=None):
-    hparams = tf.contrib.training.HParams(learning_rate=0.001,
-                                          lr_decay_step=27000,
-                                          lr_decay_rate=0.90,
+    hparams = tf.contrib.training.HParams(learning_rate=0.003,
+                                          lr_decay_step=60000,
+                                          lr_decay_rate=0.95,
                                           dropout_keep_prob=0.7,
                                           batch_size=64,
                                           image_size=224,
                                           adapt_dims=128,
                                           lamb1=0.0125,
                                           lamb2=0.0125,
+                                          scope='semi_supervised_domain_adapt')
+
+    if hparam_string:
+        tf.logging.info('Parsing command line hparams: %s', hparam_string)
+        hparams.parse(hparam_string)
+
+    tf.logging.info('Final parsed hparams: %s', hparams.values())
+    return hparams
+
+
+def create_semi_supervised_with_unlabeled_target_data_hparams(hparam_string=None):
+    hparams = tf.contrib.training.HParams(learning_rate=0.01,
+                                          lr_decay_step=50000,
+                                          lr_decay_rate=0.95,
+                                          dropout_keep_prob=0.7,
+                                          batch_size=64,
+                                          image_size=224,
+                                          adapt_dims=128,
+                                          lamb1=0.025,
                                           scope='semi_supervised_domain_adapt')
 
     if hparam_string:

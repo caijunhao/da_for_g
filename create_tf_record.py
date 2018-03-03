@@ -1,5 +1,6 @@
 import tensorflow as tf
 import PIL.Image
+import random
 from math import pi
 
 import argparse
@@ -9,17 +10,19 @@ import io
 import dataset_utils
 
 parser = argparse.ArgumentParser(description='create tf record')
-parser.add_argument('--set', default='t12', type=str, help='Convert training set, validation set or test set.')
+parser.add_argument('--set', default='t6', type=str, help='Convert training set, validation set or test set.')
 parser.add_argument('--data_dir', default='/data/cmu_patch_datasets', type=str, help='Path of dataset.')
 parser.add_argument('--output_path', default='', type=str, required=True, help='Path of record.')
 parser.add_argument('--image_size', default=224, type=int, help='Image size.')
 args = parser.parse_args()
 
-sets = ['Train', 'Test', 'Validation', 'Target', 'Target2']
-sets.extend(['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12'])
+sets = ['Train', 'Test', 'Validation']  # source domain data set with argumentation.
+sets.extend(['Target0', 'Target1', 'Target2', 'Target3', 'Target4', 'Target5', 'Target6'])
+sets.extend(['t1', 't2', 't3', 't4', 't5', 't6'])  # modified target domain data set with argumentation.
+sets.extend(['t0'])  # target domain with argumentation.
 labels = ['positive', 'negative']
 label_file = 'dataInfo.txt'
-folder = 'Images'
+folder = 'Images' 
 
 
 def convert_theta(theta):
@@ -58,8 +61,9 @@ def main():
 
     data_dir = os.path.join(args.data_dir, args.set)
     for label in labels:
-        writer = tf.python_io.TFRecordWriter(os.path.join(args.output_path, args.set+'_'+label+'.tfrecord'))
+        writer = tf.python_io.TFRecordWriter(os.path.join(args.output_path, label+'_'+args.set+'.tfrecord'))
         data_info = dataset_utils.read_examples_list(os.path.join(data_dir, label, label_file))
+        random.shuffle(data_info)
         for image_name, theta in data_info:
             image_path = os.path.join(data_dir, label, folder, image_name)
             tf_example = dict_to_tf_example(image_path, args.image_size, label, theta)

@@ -141,6 +141,31 @@ def create_semi_supervised_loss(scores,
     return loss, accuracy
 
 
+def create_semi_supervised_loss2(scores,
+                                 end_points,
+                                 class_labels,
+                                 theta_labels,
+                                 scope=None,
+                                 source_adapt_scope=None,
+                                 target_adapt_scope=None,
+                                 lamb=0.025):
+    batch_size = scores.get_shape().as_list()[0]
+    theta_lebels_one_hot = tf.one_hot(theta_labels, depth=18, on_value=1.0, off_value=0.0)
+    theta_acted = tf.reduce_sum(tf.multiply(scores, theta_lebels_one_hot), axis=1, name='theta_acted')
+    sig_op = tf.clip_by_value(slim.nn.sigmoid(theta_acted), 0.001, 0.999, name='clipped_sigmoid')
+    sig_loss = - tf.to_float(class_labels) * tf.log(sig_op) - \
+               (1 - tf.to_float(class_labels)) * tf.log(1 - sig_op)
+    sig_loss = tf.reduce_mean(sig_loss)
+    conf = tf.equal(tf.to_int32(tf.greater_equal(sig_op, 0.5)),
+                    tf.to_int32(tf.greater_equal(tf.to_float(class_labels), 0.1)))
+    accuracy = tf.reduce_mean(tf.to_float(conf))
+    source_adapt = tf.reshape(end_points[scope + '/' + source_adapt_scope], [batch_size, -1])
+    target_adapt_2 = tf.reshape(end_points[scope + '/' + target_adapt_scope + '_u'], [batch_size, -1])
+    mmd_loss = create_mmd_loss(source_adapt, target_adapt_2)
+    loss = sig_loss + lamb * mmd_loss
+    return loss, accuracy
+
+
 def add_summary(images, end_points, loss, accuracy, scope='graspnet'):
     tf.summary.scalar('loss', loss)
     tf.summary.scalar('accuracy', accuracy)

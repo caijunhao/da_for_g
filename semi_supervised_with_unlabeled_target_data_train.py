@@ -1,5 +1,5 @@
-from hparams import create_semi_supervised_domain_adapt_hparams
-from network_utils import get_dataset, create_semi_supervised_loss, add_summary, restore_map
+from hparams import create_semi_supervised_with_unlabeled_target_data_hparams
+from network_utils import get_dataset, create_semi_supervised_loss2, add_summary, restore_map
 from model import model, model_arg_scope
 
 import tensorflow as tf
@@ -28,7 +28,7 @@ parser.add_argument('--target_without_label_dir', default='', type=str, help='Th
                                                                              'can be found.')
 parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
-parser.add_argument('--num_steps', default=60000, type=int, help='The max number of gradient steps to take '
+parser.add_argument('--num_steps', default=50000, type=int, help='The max number of gradient steps to take '
                                                                   'during training.')
 parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
@@ -43,7 +43,7 @@ num_classes = 18
 
 def main():
     tf.logging.set_verbosity(tf.logging.INFO)
-    hparams = create_semi_supervised_domain_adapt_hparams()
+    hparams = create_semi_supervised_with_unlabeled_target_data_hparams()
     for path in [args.train_log_dir]:
         if not tf.gfile.Exists(path):
             tf.gfile.MakeDirs(path)
@@ -53,27 +53,6 @@ def main():
     with tf.Graph().as_default():
         with tf.device(tf.train.replica_device_setter(args.task_id)):
             global_step = tf.train.get_or_create_global_step()
-
-            images_p_t, class_labels_p_t, theta_labels_p_t = get_dataset(os.path.join(args.target_dir, 'positive'),
-                                                                         args.num_readers,
-                                                                         args.num_preprocessing_threads,
-                                                                         hparams)
-            images_n_t, class_labels_n_t, theta_labels_n_t = get_dataset(os.path.join(args.target_dir, 'negative'),
-                                                                         args.num_readers,
-                                                                         args.num_preprocessing_threads,
-                                                                         hparams)
-            images_t = tf.concat([images_p_t, images_n_t], axis=0)
-            class_labels_t = tf.concat([class_labels_p_t, class_labels_n_t], axis=0)
-            theta_labels_t = tf.concat([theta_labels_p_t, theta_labels_n_t], axis=0)
-            with slim.arg_scope(model_arg_scope()):
-                net_t, end_points_t = model(inputs=images_t,
-                                            num_classes=num_classes,
-                                            is_training=True,
-                                            dropout_keep_prob=hparams.dropout_keep_prob,
-                                            reuse=tf.AUTO_REUSE,
-                                            scope=hparams.scope,
-                                            adapt_scope='target_adapt_layer',
-                                            adapt_dims=128)
 
             images_p_s, class_labels_p_s, theta_labels_p_s = get_dataset(os.path.join(args.source_dir, 'positive'),
                                                                          args.num_readers,
@@ -115,21 +94,20 @@ def main():
                                                 adapt_scope='target_adapt_layer',
                                                 adapt_dims=128)
 
-            net = tf.concat([net_t, net_s], axis=0)
-            images = tf.concat([images_t, images_s], axis=0)
-            class_labels = tf.concat([class_labels_t, class_labels_s], axis=0)
-            theta_labels = tf.concat([theta_labels_t, theta_labels_s], axis=0)
+            net = tf.concat([net_s], axis=0)
+            images = tf.concat([images_s], axis=0)
+            class_labels = tf.concat([class_labels_s], axis=0)
+            theta_labels = tf.concat([theta_labels_s], axis=0)
             end_points = {}
-            end_points.update(end_points_t)
             end_points.update(end_points_s)
             end_points[hparams.scope+'/target_adapt_layer_u'] = end_points_t_u[hparams.scope+'/target_adapt_layer']
-            loss, accuracy = create_semi_supervised_loss(net,
-                                                         end_points,
-                                                         class_labels,
-                                                         theta_labels,
-                                                         scope=hparams.scope,
-                                                         source_adapt_scope='source_adapt_layer',
-                                                         target_adapt_scope='target_adapt_layer')
+            loss, accuracy = create_semi_supervised_loss2(net,
+                                                          end_points,
+                                                          class_labels,
+                                                          theta_labels,
+                                                          scope=hparams.scope,
+                                                          source_adapt_scope='source_adapt_layer',
+                                                          target_adapt_scope='target_adapt_layer')
             learning_rate = hparams.learning_rate
             if hparams.lr_decay_step:
                 learning_rate = tf.train.exponential_decay(hparams.learning_rate,

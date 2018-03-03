@@ -7,7 +7,7 @@ import tensorflow.contrib.slim as slim
 
 import argparse
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 parser = argparse.ArgumentParser(description='evaluate the accuracy')
 parser.add_argument('--dataset_dir', default='', type=str, help='Path to the test data set.')

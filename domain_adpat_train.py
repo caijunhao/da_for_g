@@ -7,7 +7,7 @@ import tensorflow.contrib.slim as slim
 
 import argparse
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 parser = argparse.ArgumentParser(description='training network')
 
@@ -70,7 +70,7 @@ def main():
                                             dropout_keep_prob=hparams.dropout_keep_prob,
                                             reuse=tf.AUTO_REUSE,
                                             scope=hparams.scope,
-                                            adapt_scope='target_adapt_layer',
+                                            adapt_scope='adapt_layer',
                                             adapt_dims=128)
 
             images_p_s, class_labels_p_s, theta_labels_p_s = get_dataset(os.path.join(args.source_dir, 'positive'),
@@ -91,7 +91,7 @@ def main():
                                             dropout_keep_prob=hparams.dropout_keep_prob,
                                             reuse=tf.AUTO_REUSE,
                                             scope=hparams.scope,
-                                            adapt_scope='source_adapt_layer',
+                                            adapt_scope='adapt_layer',
                                             adapt_dims=128)
 
             net = tf.concat([net_t, net_s], axis=0)
@@ -99,6 +99,8 @@ def main():
             class_labels = tf.concat([class_labels_t, class_labels_s], axis=0)
             theta_labels = tf.concat([theta_labels_t, theta_labels_s], axis=0)
             end_points = {}
+            end_points_t[hparams.scope+'/target_adapt_layer'] = end_points_t[hparams.scope+'/adapt_layer']
+            end_points_s[hparams.scope+'/source_adapt_layer'] = end_points_s[hparams.scope+'/adapt_layer']
             end_points.update(end_points_t)
             end_points.update(end_points_s)
             loss, accuracy = create_loss(net,

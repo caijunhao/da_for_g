@@ -26,7 +26,7 @@ parser.add_argument('--source_dir', default='', type=str, help='The directory wh
 parser.add_argument('--target_dir', default='', type=str, help='The directory where the target datasets can be found.')
 parser.add_argument('--num_readers', default=2, type=int, help='The number of parallel readers '
                                                                'that read data from the dataset.')
-parser.add_argument('--num_steps', default=100000, type=int, help='The max number of gradient steps to take '
+parser.add_argument('--num_steps', default=50000, type=int, help='The max number of gradient steps to take '
                                                                  'during training.')
 parser.add_argument('--num_preprocessing_threads', default=2, type=int, help='The number of threads '
                                                                              'used to create the batches.')
